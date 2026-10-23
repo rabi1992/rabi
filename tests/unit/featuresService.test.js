@@ -31,6 +31,14 @@ test("serverStats preserves independently disabled metrics", () => {
   eq(feature.showLeaves, false);
 });
 
+test("music commands are available by default and can be role-restricted", () => {
+  const feature = normalizeFeature("musicCommands", null);
+  eq(feature.enabled, true);
+  eq(feature.playEnabled, true);
+  eq(feature.allowedRoleIds.length, 0);
+  eq(FEATURE_DEFAULTS.musicCommands.queueEnabled, true);
+});
+
 test("antiSpam is disabled until configured for a guild", () => {
   const feature = normalizeFeature("antiSpam", null);
   eq(feature.enabled, false);

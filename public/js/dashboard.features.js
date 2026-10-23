@@ -713,30 +713,21 @@
       ],
     },
     {
-      key: "radio",
+      key: "musicCommands",
       fields: [
-        { type: "channel", name: "voiceChannelId", label: "features_channel" },
+        { type: "bool", name: "playEnabled", label: "features_music_play" },
+        { type: "bool", name: "stopEnabled", label: "features_music_stop" },
+        { type: "bool", name: "queueEnabled", label: "features_music_queue" },
         {
-          type: "text",
-          name: "streamUrl",
-          label: "features_radio_stream_url",
-          placeholder: "https://example.com/radio.mp3",
-          maxLength: 2048,
+          type: "bool",
+          name: "nowplayingEnabled",
+          label: "features_music_nowplaying",
         },
         {
-          type: "text",
-          name: "streamType",
-          label: "features_radio_stream_type",
-          placeholder: "mp3",
-          maxLength: 8,
-        },
-        {
-          type: "number",
-          name: "reconnectMinutes",
-          label: "features_radio_reconnect_minutes",
-          min: 1,
-          max: 1440,
-          step: 1,
+          type: "multiRole",
+          name: "allowedRoleIds",
+          label: "features_music_roles",
+          hintKey: "features_music_roles_hint",
         },
       ],
     },
@@ -745,14 +736,12 @@
   var current = {}; // Valores carregados da API (por funcionalidade).
   var configuredFeatures = {};
   var activeFeatureFilter = "all";
-  var radioStatusTimer = null;
   var featureTestActionKeys = {
     autoModeration: "features_test_simulate",
     antiSpam: "features_test_validate",
     autoKick: "features_test_validate",
     polls: "features_test_how_to",
     twitch: "features_test_check",
-    radio: "features_test_check",
   };
   var featureTestConfirmationKeys = {
     messageLogs: "features_test_send_confirm",
@@ -790,7 +779,6 @@
     serverStats: ["serverStats"],
     memes: ["channelId", "intervalMinutes"],
     twitch: ["streamerName", "channelId"],
-    radio: ["voiceChannelId", "streamUrl"],
   };
   var channels = null; // Cache de canais do guild.
   var roles = null; // Cache de cargos do guild.
@@ -1484,15 +1472,6 @@
           esc(publishLabel) +
           "</button>"
         : "";
-    var radioControlsHtml =
-      feature.key === "radio"
-        ? '<button class="btn xs btn-ghost" type="button" data-role="radio-start">' +
-          esc(t("features_radio_start")) +
-          '</button><button class="btn xs btn-ghost" type="button" data-role="radio-stop">' +
-          esc(t("features_radio_stop")) +
-          "</button>"
-        : "";
-
     // Chaves construídas fora do t(...) para o audit i18n não as interpretar como literais.
     var nameKey = "feature_" + snake(feature.key) + "_name";
     var descKey = "feature_" + snake(feature.key) + "_desc";
@@ -1534,17 +1513,6 @@
         ),
       ) +
       "</span>";
-    var radioStatusHtml =
-      feature.key === "radio"
-        ? '<div class="feature-card__status" data-role="radio-status-wrap">' +
-          '<span class="hint">' +
-          esc(t("features_radio_status")) +
-          "</span> " +
-          '<strong data-role="radio-status" data-state="offline">' +
-          esc(t("features_radio_status_offline")) +
-          "</strong>" +
-          "</div>"
-        : "";
     var setupHintHtml =
       isConfigured || isInherited
         ? ""
@@ -1609,7 +1577,6 @@
       esc(t(descKey)) +
       "</p>" +
       configStateHtml +
-      radioStatusHtml +
       '<div class="feature-diagnosis" data-role="diagnosis" data-status="unknown">' +
       '<div class="feature-diagnosis__header">' +
       '<span class="feature-diagnosis__status" data-role="diagnosis-status" role="status" aria-live="polite">' +
@@ -1638,7 +1605,6 @@
       '<button class="btn xs" type="button" data-role="test">' +
       esc(t(featureTestActionKeys[feature.key] || "features_test_send")) +
       "</button>" +
-      (radioControlsHtml ? radioControlsHtml : "") +
       '<span class="hint" data-role="status"></span>' +
       "</div>" +
       '<div class="feature-card__actions-right">' +
@@ -1677,65 +1643,6 @@
     var diagnosis = card.querySelector('[data-role="diagnosis"]');
     var status = diagnosis ? diagnosis.dataset.status : "unknown";
     return ["incomplete", "blocked", "error"].includes(status);
-  }
-
-  async function syncRadioStatus() {
-    var gid = guildId();
-    if (!gid) return;
-    var card = cardFor("radio");
-    if (!card) return;
-    var statusEl = card.querySelector('[data-role="radio-status"]');
-    if (!statusEl) return;
-
-    try {
-      var res = await NS.apiGet(
-        "/api/radio?guildId=" + encodeURIComponent(gid),
-      );
-      var value = res && res.value ? res.value : {};
-      var state = String(value.status || "offline");
-      var label =
-        state === "playing"
-          ? t("features_radio_status_live")
-          : state === "ready"
-            ? t("features_radio_status_ready")
-            : state === "voice channel pending"
-              ? t("features_radio_status_pending")
-              : state === "error"
-                ? t("features_radio_status_error")
-                : t("features_radio_status_offline");
-      statusEl.textContent = label;
-      statusEl.setAttribute("data-state", state);
-      if (value.statusMessage) {
-        statusEl.title = String(value.statusMessage);
-      } else {
-        statusEl.title = "";
-      }
-    } catch (err) {
-      statusEl.textContent = t("features_radio_status_offline");
-      statusEl.setAttribute("data-state", "offline");
-      statusEl.title = "";
-    }
-  }
-
-  function startRadioStatusPolling() {
-    if (radioStatusTimer) {
-      clearInterval(radioStatusTimer);
-      radioStatusTimer = null;
-    }
-    if (!guildId()) return;
-    radioStatusTimer = setInterval(function () {
-      syncRadioStatus().catch(function (err) {
-        console.warn("Radio status refresh failed", err);
-      });
-    }, 15000);
-    radioStatusTimer.unref && radioStatusTimer.unref();
-  }
-
-  function stopRadioStatusPolling() {
-    if (radioStatusTimer) {
-      clearInterval(radioStatusTimer);
-      radioStatusTimer = null;
-    }
   }
 
   function updateFeatureOverview() {
@@ -1944,7 +1851,10 @@
 
   function markCardDraft(card, preservePreset) {
     if (!card) return;
-    card.setAttribute("data-dirty", "true");
+    var key = card.getAttribute("data-feature");
+    var original = JSON.stringify(current[key] || {});
+    var draft = JSON.stringify(collect(key));
+    card.setAttribute("data-dirty", original !== draft ? "true" : "false");
     var feature = FEATURES.filter(function (item) {
       return item.key === card.getAttribute("data-feature");
     })[0];
@@ -1984,12 +1894,8 @@
       });
     var testBtn = card.querySelector('[data-role="test"]');
     var publishBtn = card.querySelector('[data-role="publish"]');
-    var radioStartBtn = card.querySelector('[data-role="radio-start"]');
-    var radioStopBtn = card.querySelector('[data-role="radio-stop"]');
     if (testBtn) testBtn.disabled = !on || premiumLocked || saving;
     if (publishBtn) publishBtn.disabled = !on || premiumLocked || saving;
-    if (radioStartBtn) radioStartBtn.disabled = !on || premiumLocked || saving;
-    if (radioStopBtn) radioStopBtn.disabled = !on || premiumLocked || saving;
     if (enabledEl)
       enabledEl.disabled =
         premiumLocked || saving || configuredFeatures[key] !== true;
@@ -2006,8 +1912,6 @@
     var enabledEl = card.querySelector('[data-role="enabled"]');
     var saveBtn = card.querySelector('[data-role="save"]');
     var testBtn = card.querySelector('[data-role="test"]');
-    var radioStartBtn = card.querySelector('[data-role="radio-start"]');
-    var radioStopBtn = card.querySelector('[data-role="radio-stop"]');
     var diagnoseBtn = card.querySelector('[data-role="diagnose"]');
     var publishBtn = card.querySelector('[data-role="publish"]');
     var addEntryBtn = card.querySelector('[data-role="add-entry"]');
@@ -2043,18 +1947,6 @@
     if (testBtn) {
       testBtn.addEventListener("click", function () {
         testFeature(key);
-      });
-    }
-
-    if (radioStartBtn) {
-      radioStartBtn.addEventListener("click", function () {
-        toggleRadioRuntime("start");
-      });
-    }
-
-    if (radioStopBtn) {
-      radioStopBtn.addEventListener("click", function () {
-        toggleRadioRuntime("stop");
       });
     }
 
@@ -2325,11 +2217,6 @@
       card.setAttribute("data-dirty", "false");
       updateConfigState(card);
       resetDiagnosis(card);
-      if (key === "radio") {
-        syncRadioStatus().catch(function (err) {
-          console.warn("Radio status refresh failed after save", err);
-        });
-      }
       if (!silent) {
         if (statusEl) statusEl.textContent = "";
         notify(t("features_saved"), { type: "success" });
@@ -2357,56 +2244,6 @@
       if (saveBtn) saveBtn.disabled = false;
       applyDisabled(card);
       updateFeatureOverview();
-    }
-  }
-
-  // Guarda a configuração atual e envia uma amostra da funcionalidade.
-  async function toggleRadioRuntime(action) {
-    var gid = guildId();
-    if (!gid) return;
-
-    var card = cardFor("radio");
-    var enabledEl = card ? card.querySelector('[data-role="enabled"]') : null;
-    var statusEl = card ? card.querySelector('[data-role="status"]') : null;
-    var startButton = card ? card.querySelector('[data-role="radio-start"]') : null;
-    var stopButton = card ? card.querySelector('[data-role="radio-stop"]') : null;
-    if (enabledEl) enabledEl.checked = action === "start";
-    if (startButton) startButton.disabled = true;
-    if (stopButton) stopButton.disabled = true;
-
-    try {
-      var value = collect("radio");
-      value.enabled = action === "start";
-      current.radio = value;
-      if (card) card.setAttribute("data-dirty", "false");
-      var saved = await saveFeature("radio", true);
-      if (!saved) throw new Error("SAVE_FAILED");
-
-      var res = await NS.apiPost("/api/radio/" + action, { guildId: gid });
-      if (!res || res.ok === false) {
-        throw new Error((res && res.error) || "ERROR");
-      }
-
-      if (statusEl) {
-        statusEl.textContent =
-          action === "start" ? t("features_radio_starting") : t("features_radio_stopping");
-      }
-      await syncRadioStatus();
-      notify(
-        action === "start" ? t("features_radio_started") : t("features_radio_stopped"),
-        { type: "success" },
-      );
-    } catch (err) {
-      console.error("Radio runtime toggle failed", err);
-      if (enabledEl) enabledEl.checked = !!(current.radio && current.radio.enabled);
-      notify(
-        action === "start" ? t("features_radio_start_error") : t("features_radio_stop_error"),
-        { type: "error" },
-      );
-    } finally {
-      if (startButton) startButton.disabled = false;
-      if (stopButton) stopButton.disabled = false;
-      applyDisabled(card);
     }
   }
 
@@ -2453,11 +2290,6 @@
         ? "features_test_info_" + res.info
         : "features_test_ok";
       if (statusEl) statusEl.textContent = t(infoKey, res.data || {});
-      if (key === "radio") {
-        syncRadioStatus().catch(function (err) {
-          console.warn("Radio status refresh failed after test", err);
-        });
-      }
       notify(t(infoKey, res.data || {}), { type: "success" });
     } catch (err) {
       console.error("Feature test error", err);
@@ -2566,14 +2398,13 @@
       configuredFeatures =
         data && data.configuredFeatures ? data.configuredFeatures : {};
       FEATURES.forEach(function (feature) {
-        if (configuredFeatures[feature.key] !== true)
+        if (
+          configuredFeatures[feature.key] !== true &&
+          feature.key !== "musicCommands"
+        )
           current[feature.key] = { enabled: false };
       });
       render();
-      startRadioStatusPolling();
-      syncRadioStatus().catch(function (err) {
-        console.warn("Radio status load failed", err);
-      });
       FEATURES.forEach(function (feature) {
         if (
           configuredFeatures[feature.key] === true &&
@@ -2591,18 +2422,18 @@
     }
   }
 
-  if (typeof window !== "undefined") {
-    window.addEventListener("beforeunload", function () {
-      stopRadioStatusPolling();
-    });
-  }
-
   NS.loadFeatures = loadFeatures;
   NS.applyPremiumState = applyPremiumState;
   NS.toggleFeatureCard = toggleCardDetails;
-  NS.stopRadioStatusPolling = stopRadioStatusPolling;
   NS.hasUnsavedFeatureDrafts = function () {
     var grid = byId("featuresGrid");
-    return !!(grid && grid.querySelector('.feature-card[data-dirty="true"]'));
+    if (!grid) return false;
+    return Array.prototype.some.call(
+      grid.querySelectorAll('.feature-card[data-dirty="true"]'),
+      function (card) {
+        var key = card.getAttribute("data-feature");
+        return JSON.stringify(collect(key)) !== JSON.stringify(current[key] || {});
+      },
+    );
   };
 })();

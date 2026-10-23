@@ -685,13 +685,13 @@
       var untilLabel = document.createElement("label");
       untilLabel.textContent = t("premium_admin_until");
       untilLabel.title = t("premium_admin_until_hint");
-      var until = document.createElement("input");
-      until.className = "input";
-      until.type = "datetime-local";
-      until.value = localDateTime(item.until);
-      until.setAttribute("aria-label", t("premium_admin_until"));
-      until.title = t("premium_admin_until_hint");
-      untilLabel.appendChild(until);
+      var untilInput = document.createElement("input");
+      untilInput.className = "input";
+      untilInput.type = "datetime-local";
+      untilInput.value = localDateTime(item.until);
+      untilInput.setAttribute("aria-label", t("premium_admin_until"));
+      untilInput.title = t("premium_admin_until_hint");
+      untilLabel.appendChild(untilInput);
 
       var note = document.createElement("input");
       note.className = "input";

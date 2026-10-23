@@ -57,9 +57,11 @@
     me: null,
     perms: {},
     trustDirty: false,
+    trustOriginalSnapshot: null,
     trustLastSavedAt: null,
     currentTrustConfig: null,
     trustExtraOverride: null,
+    configOriginalSnapshot: null,
     theme: "dark",
     density: "comfortable",
   };
@@ -1133,6 +1135,7 @@
       ),
       config: !!state.configDirty,
       trust: !!state.trustDirty,
+      tempVoice: !!state.tempVoiceDirty,
     };
   }
 
@@ -1140,7 +1143,7 @@
     var drafts = getUnsavedDraftState();
     var hasGameNewsDrafts = drafts.gameNews;
     var hasFeatureDrafts = drafts.features;
-    var hasOtherDrafts = drafts.config || drafts.trust;
+    var hasOtherDrafts = drafts.config || drafts.trust || drafts.tempVoice;
     if (!hasGameNewsDrafts && !hasFeatureDrafts && !hasOtherDrafts) return true;
     var key =
       hasOtherDrafts || (hasGameNewsDrafts && hasFeatureDrafts)
@@ -2428,8 +2431,35 @@
     }
   }
 
+  function getGuildConfigDraftSnapshot() {
+    function selectedValues(id) {
+      var el = document.getElementById(id);
+      return el
+        ? Array.prototype.map.call(el.selectedOptions || [], function (option) {
+            return String(option.value || "");
+          })
+        : [];
+    }
+    function value(id) {
+      var el = document.getElementById(id);
+      return el ? String(el.value || "").trim() : "";
+    }
+    return JSON.stringify({
+      logChannelId: value("configLogChannel"),
+      dashboardLogChannelId: value("configDashboardLogChannel"),
+      staffRoleIds: selectedValues("configStaffRoles").sort(),
+      moderationRoleIds: selectedValues("staffRolesModeration").sort(),
+      ticketRoleIds: selectedValues("staffRolesTickets").sort(),
+      language: value("configServerLanguage"),
+      timezone: value("configServerTimezone"),
+      ticketLabels: value("configTicketLabels"),
+    });
+  }
+
   function markConfigDirty() {
-    setConfigDirty(true);
+    setConfigDirty(
+      state.configOriginalSnapshot !== getGuildConfigDraftSnapshot(),
+    );
   }
 
   function bindConfigDirtyListeners() {
@@ -2670,6 +2700,7 @@
           : "";
         configTicketLabels.addEventListener("input", function () {
           renderTicketLabelsChips();
+          markConfigDirty();
         });
       }
       if (ticketLabelAddBtn && configTicketLabels) {
@@ -3024,6 +3055,9 @@
       }
 
       bindConfigDirtyListeners();
+      state.configOriginalSnapshot = getGuildConfigDraftSnapshot();
+      state.trustOriginalSnapshot = JSON.stringify(getTrustInputs());
+      state.trustDirty = false;
       setConfigDirty(false);
       setConfigStatus(t("config_status_loaded"), { autoHideMs: 1200 });
     } catch (err) {
@@ -3278,6 +3312,7 @@
       }
 
       // mark clean + update UI
+      state.configOriginalSnapshot = getGuildConfigDraftSnapshot();
       state.configDirty = false;
       var btnSave = document.getElementById("btnSaveGuildConfig");
       if (btnSave) btnSave.disabled = true;
@@ -4445,8 +4480,11 @@
     }
 
     function markTrustDirty() {
-      state.trustDirty = true;
-      setTrustStatus(t("trust_status_unsaved"));
+      state.trustDirty =
+        state.trustOriginalSnapshot !== JSON.stringify(getTrustInputs());
+      setTrustStatus(
+        state.trustDirty ? t("trust_status_unsaved") : "",
+      );
     }
 
     // Bind input changes -> mark dirty + switch to "custom"
@@ -4552,6 +4590,7 @@
             }
 
             state.trustDirty = false;
+            state.trustOriginalSnapshot = JSON.stringify(getTrustInputs());
             state.trustLastSavedAt = Date.now();
             state.trustExtraOverride = null;
             if (
@@ -4615,7 +4654,8 @@
         !drafts.gameNews &&
         !drafts.features &&
         !drafts.config &&
-        !drafts.trust
+        !drafts.trust &&
+        !drafts.tempVoice
       )
         return;
       event.preventDefault();

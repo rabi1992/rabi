@@ -44,7 +44,6 @@ const REQUIRED_FEATURE_FIELDS = {
   goodbye: ["channelId"],
   memes: ["channelId", "intervalMinutes"],
   twitch: ["streamerName", "channelId"],
-  radio: ["voiceChannelId", "streamUrl"],
 };
 const FEATURE_FIELD_ISSUES = {
   channelId: "missing_channel",
@@ -69,7 +68,6 @@ const FEATURE_CHANNEL_FIELDS = {
   goodbye: "channelId",
   memes: "channelId",
   twitch: "channelId",
-  radio: "voiceChannelId",
 };
 const CHANNEL_PERMISSIONS = {
   messageLogs: ["ViewChannel", "SendMessages", "EmbedLinks"],
@@ -574,33 +572,15 @@ function cleanFeatureValue(name, raw, sanitizeId) {
       };
     }
 
-    case "radio": {
-      const streamUrl =
-        typeof src.streamUrl === "string" && src.streamUrl.trim()
-          ? src.streamUrl.trim().slice(0, 2048)
-          : null;
-      const streamType =
-        src.streamType === "hls" || src.streamType === "mp3"
-          ? src.streamType
-          : FEATURE_DEFAULTS.radio.streamType;
-      const reconnectMinutes = toInt(
-        src.reconnectMinutes,
-        FEATURE_DEFAULTS.radio.reconnectMinutes,
-        1,
-        1440,
-      );
+    case "musicCommands":
       return {
-        enabled: toBool(src.enabled),
-        voiceChannelId: id(src.voiceChannelId),
-        streamUrl,
-        streamType,
-        reconnectMinutes,
-        statusMessage:
-          typeof src.statusMessage === "string"
-            ? src.statusMessage.trim().slice(0, 200) || null
-            : null,
+        enabled: src.enabled !== false,
+        playEnabled: src.playEnabled !== false,
+        stopEnabled: src.stopEnabled !== false,
+        queueEnabled: src.queueEnabled !== false,
+        nowplayingEnabled: src.nowplayingEnabled !== false,
+        allowedRoleIds: idList(src.allowedRoleIds),
       };
-    }
 
     default:
       return null;

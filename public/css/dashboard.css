@@ -4753,7 +4753,8 @@ summary:focus-visible,
   align-self: start;
 }
 .feature-card[data-premium-module].is-expanded {
-  grid-column: auto;
+  grid-column: 1 / -1;
+  height: auto;
 }
 .feature-card[data-premium-module] .feature-card__body,
 .feature-card[data-premium-module] .feature-card__surface {

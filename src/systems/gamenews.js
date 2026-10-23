@@ -69,6 +69,7 @@ const FEED_HEADERS = {
 
 let started = false;
 let isRunning = false;
+let feedsRevision = 0;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -971,12 +972,16 @@ async function gameNewsSystem(client, config) {
     const runLoop = async () => {
       if (isRunning) return;
       isRunning = true;
+      const revision = feedsRevision;
+      let activeFeeds = false;
 
       try {
         const feeds = await getEffectiveFeeds();
-        if (!feeds.length) return;
+        if (revision !== feedsRevision || !feeds.length) return;
+        activeFeeds = true;
 
         for (const feed of feeds) {
+          if (revision !== feedsRevision) break;
           const feedName = feed?.name || "UnknownFeed";
           const perFeedJitterMs =
             clampNumber(
@@ -990,6 +995,7 @@ async function gameNewsSystem(client, config) {
               : 1500;
 
           await sleep(withJitter(300, safePerFeedJitter));
+          if (revision !== feedsRevision) break;
 
           let record = null;
           try {
@@ -1001,6 +1007,7 @@ async function gameNewsSystem(client, config) {
             );
             continue;
           }
+          if (revision !== feedsRevision) break;
 
           if (isFeedPaused(record)) {
             if (process.env.NODE_ENV !== "production") {
@@ -1048,6 +1055,7 @@ async function gameNewsSystem(client, config) {
               record,
               fetchOpts,
             );
+            if (revision !== feedsRevision) break;
             let items = parsed?.items || [];
             if (!Array.isArray(items) || items.length === 0) {
               await registerFeedSuccess(record).catch(() => null);
@@ -1128,6 +1136,7 @@ async function gameNewsSystem(client, config) {
             const itemsToSend = newItems.slice(-safeMaxPerCycle);
 
             for (const itemToSend of itemsToSend) {
+              if (revision !== feedsRevision) break;
               if (!itemToSend?.title || !itemToSend?.link) {
                 await registerFeedSuccess(record).catch(() => null);
                 continue;
@@ -1154,6 +1163,7 @@ async function gameNewsSystem(client, config) {
               });
             }
           } catch (err) {
+            if (revision !== feedsRevision) break;
             console.error(
               `[GameNews] Error processing feed ${feedName}:`,
               err?.message || err,
@@ -1181,7 +1191,7 @@ async function gameNewsSystem(client, config) {
       } finally {
         isRunning = false;
         try {
-          console.log("[GameNews] Cycle completed.");
+          if (activeFeeds) console.log("[GameNews] Cycle completed.");
         } catch {
           // ignore logging errors
         }
@@ -1372,6 +1382,7 @@ async function sendFeedLog(client, feed, message) {
 module.exports = gameNewsSystem;
 module.exports.testSendGameNews = testSendGameNews;
 module.exports.invalidateFeedsCache = function invalidateFeedsCache() {
+  feedsRevision += 1;
   feedsCacheAt = 0;
   feedsCacheItems = null;
 };

@@ -8,6 +8,7 @@ const {
   guildPlayers,
   playGuildMusic,
   stopGuildMusic,
+  _internals,
 } = require("../../src/systems/music");
 
 test("normalizeMediaQuery trims whitespace and preserves playable URLs", async () => {
@@ -18,6 +19,44 @@ test("normalizeMediaQuery trims whitespace and preserves playable URLs", async (
 test("isPlayableUrl accepts direct audio URLs and rejects empty input", async () => {
   ok(isPlayableUrl("https://example.com/song.mp3") === true, "direct audio URLs should be accepted");
   ok(isPlayableUrl("   ") === false, "blank values should be rejected");
+});
+
+test("YouTube bot challenges are surfaced without treating the page as audio", async () => {
+  ok(
+    _internals.isYoutubeUrl("https://www.youtube.com/watch?v=example") === true,
+    "YouTube URLs should be recognized before raw HTTP fallback",
+  );
+  ok(
+    _internals.normalizePlaybackError(
+      new Error("Sign in to confirm you're not a bot"),
+    ) === "SOURCE_BLOCKED",
+    "anti-bot failures should produce a stable playback reason",
+  );
+});
+
+test("releasing a music session clears its queue and voice listener", async () => {
+  const events = new Map();
+  let destroyed = false;
+  const session = {
+    player: { stop: () => {} },
+    connection: { destroy: () => { destroyed = true; } },
+    client: {
+      off: (name, listener) => events.delete(name + listener),
+    },
+    onVoiceStateUpdate: () => {},
+  };
+  events.set("voiceStateUpdate" + session.onVoiceStateUpdate, true);
+  guildPlayers.set("guild-cleanup", session);
+  enqueueGuildTrack("guild-cleanup", {
+    title: "Queued",
+    url: "https://example.com/audio.mp3",
+  });
+
+  _internals.releaseGuildSession("guild-cleanup", session);
+
+  ok(!guildPlayers.has("guild-cleanup"), "session should be removed");
+  ok(!getGuildQueue("guild-cleanup").length, "queue should be cleared");
+  ok(!events.size && destroyed, "listener and voice connection should be released");
 });
 
 test("queue tracks and expose the current track", async () => {

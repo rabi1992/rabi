@@ -216,6 +216,13 @@ module.exports = function buildSlashCommands(_prefix) {
       "pt-BR": "Mostrar ajuda e um resumo dos comandos disponíveis",
     });
 
+  const info = new SlashCommandBuilder()
+    .setName("info")
+    .setDescription("Show staff a guide to all bot commands")
+    .setDescriptionLocalizations({
+      "pt-BR": "Mostrar à staff o guia de comandos do bot",
+    });
+
   const poll = new SlashCommandBuilder()
     .setName("poll")
     .setDescription("Create a poll with several options")
@@ -323,6 +330,7 @@ module.exports = function buildSlashCommands(_prefix) {
     userinfo,
     history,
     help,
+    info,
     poll,
     rank,
     leaderboard,

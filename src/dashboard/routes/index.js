@@ -22,7 +22,6 @@ const { registerAuditRoutes } = require("./audit");
 const { registerAdminRoutes } = require("./admin");
 const { registerTempVoiceRoutes } = require("./tempVoice");
 const { registerFeaturesRoutes } = require("./features");
-const { registerRadioRoutes } = require("./radio");
 const { registerPremiumRoutes, createPremiumGuard } = require("./premium");
 const {
   executeMemberAction,
@@ -353,20 +352,6 @@ function registerDashboardRoutes(ctx) {
     getClient,
     recordAudit,
     getActorFromRequest,
-  });
-
-  registerRadioRoutes({
-    app,
-    requireDashboardAuth,
-    requirePerm,
-    requireGuildAccess,
-    sanitizeId,
-    rateLimit,
-    GuildConfig,
-    getClient,
-    recordAudit,
-    getActorFromRequest,
-    requirePremium,
   });
 
   registerPremiumRoutes({

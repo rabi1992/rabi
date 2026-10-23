@@ -31,6 +31,10 @@ module.exports = async function playSlash(client, interaction) {
               ? "Precisas indicar uma música, link ou pesquisa."
               : result.reason === "NO_RESULTS"
                 ? "Não encontrei resultados para essa pesquisa."
+                : result.reason === "SOURCE_BLOCKED"
+                  ? "A fonte bloqueou o acesso automatizado. Usa um link direto para um stream de áudio acessível."
+                  : result.reason === "STREAM_NOT_AUDIO"
+                    ? "O link não devolveu áudio. Usa um link direto para um stream de áudio."
                 : "Não consegui reproduzir esse áudio no momento.",
         },
         { ephemeral: true },

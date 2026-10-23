@@ -34,6 +34,38 @@ function isPlayableUrl(value) {
   }
 }
 
+function isYoutubeUrl(value) {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return hostname === "youtu.be" || hostname.endsWith("youtube.com");
+  } catch {
+    return false;
+  }
+}
+
+function normalizePlaybackError(error) {
+  const message = String(error?.message || "");
+  if (/sign in to confirm|confirm you(?:'|’)re not a bot/i.test(message)) {
+    return "SOURCE_BLOCKED";
+  }
+  return message || "PLAY_FAILED";
+}
+
+function releaseGuildSession(guildId, session, clearQueue = true) {
+  if (guildPlayers.get(guildId) !== session) return;
+  guildPlayers.delete(guildId);
+  if (clearQueue) guildQueues.delete(guildId);
+  if (session.client && session.onVoiceStateUpdate) {
+    session.client.off("voiceStateUpdate", session.onVoiceStateUpdate);
+  }
+  try {
+    session.player?.stop(true);
+  } catch {}
+  try {
+    session.connection?.destroy();
+  } catch {}
+}
+
 async function resolveTrackSource(query) {
   const raw = normalizeMediaQuery(query);
   if (!raw) {
@@ -79,12 +111,18 @@ async function createResourceFromUrl(url) {
       }
     } catch (err) {
       console.warn("[music] play-dl stream failed, retrying raw HTTP stream:", err?.message || err);
+      if (isYoutubeUrl(url)) throw new Error("SOURCE_BLOCKED");
     }
   }
 
+  if (isYoutubeUrl(url)) throw new Error("SOURCE_BLOCKED");
   const response = await fetch(url);
   if (!response.ok || !response.body) {
     throw new Error(`STREAM_UNAVAILABLE:${response.status || "unknown"}`);
+  }
+  const contentType = response.headers.get("content-type") || "";
+  if (/text\/html|application\/xhtml\+xml/i.test(contentType)) {
+    throw new Error("STREAM_NOT_AUDIO");
   }
 
   const nodeStream = Readable.fromWeb(response.body);
@@ -114,11 +152,7 @@ async function ensureGuildPlayer(client, guildId, channelId) {
     if (existing.connection.joinConfig?.channelId === channelId) {
       return existing;
     }
-    try {
-      existing.player?.stop();
-      existing.connection.destroy();
-    } catch {}
-    guildPlayers.delete(guildId);
+    releaseGuildSession(guildId, existing);
   }
 
   const connection = joinVoiceChannel({
@@ -139,9 +173,24 @@ async function ensureGuildPlayer(client, guildId, channelId) {
 
   const session = { guildId, channelId, connection, player, client };
   guildPlayers.set(guildId, session);
+  session.onVoiceStateUpdate = (oldState, newState) => {
+    if (
+      oldState?.channelId !== channelId &&
+      newState?.channelId !== channelId
+    ) {
+      return;
+    }
+    const voiceChannel = guild.channels.cache.get(channelId);
+    const hasListeners = voiceChannel?.members?.some(
+      (member) => !member.user?.bot,
+    );
+    if (hasListeners === false) releaseGuildSession(guildId, session);
+  };
+  client.on("voiceStateUpdate", session.onVoiceStateUpdate);
 
   if (!session._queueBound) {
     session.player.on(AudioPlayerStatus.Idle, async () => {
+      if (guildPlayers.get(guildId) !== session) return;
       const queue = getGuildQueue(guildId);
       if (queue.length > 0) {
         const next = queue[0];
@@ -153,38 +202,16 @@ async function ensureGuildPlayer(client, guildId, channelId) {
           sessionNow.player.play(resource);
           sessionNow.lastTrack = { title: next.title, url: next.url };
         } catch {
-          guildQueues.delete(guildId);
+          releaseGuildSession(guildId, sessionNow);
         }
       } else {
-        guildPlayers.delete(guildId);
+        releaseGuildSession(guildId, session);
       }
     });
     session._queueBound = true;
   }
 
   return session;
-}
-
-async function playNextQueuedTrack(guildId, client, channelId) {
-  const queue = getGuildQueue(guildId);
-  if (!queue.length) {
-    return { ok: false, status: "empty" };
-  }
-
-  const next = queue[0];
-  guildQueues.set(guildId, queue.slice(1));
-
-  const session = guildPlayers.get(guildId) || (await ensureGuildPlayer(client, guildId, channelId));
-  const resource = await createResourceFromUrl(next.url);
-  session.player.play(resource);
-  session.lastTrack = { title: next.title, url: next.url };
-
-  return {
-    ok: true,
-    status: "playing",
-    title: next.title,
-    url: next.url,
-  };
 }
 
 async function playGuildMusic({ client, guildId, channelId, query }) {
@@ -226,10 +253,11 @@ async function playGuildMusic({ client, guildId, channelId, query }) {
       url: source.url,
     };
   } catch (err) {
+    const reason = normalizePlaybackError(err);
     return {
       ok: false,
       status: "error",
-      reason: err?.message || "PLAY_FAILED",
+      reason,
     };
   }
 }
@@ -280,16 +308,7 @@ async function stopGuildMusic(guildId) {
     return { ok: true, status: "stopped" };
   }
 
-  try {
-    session.player?.stop();
-  } catch {}
-
-  try {
-    session.connection?.destroy();
-  } catch {}
-
-  guildPlayers.delete(guildId);
-  guildQueues.delete(guildId);
+  releaseGuildSession(guildId, session);
   return { ok: true, status: "stopped" };
 }
 
@@ -309,4 +328,5 @@ module.exports = {
   getNowPlaying,
   guildPlayers,
   guildQueues,
+  _internals: { releaseGuildSession, isYoutubeUrl, normalizePlaybackError },
 };

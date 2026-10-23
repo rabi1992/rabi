@@ -14,7 +14,6 @@ const PREMIUM_MODULES = [
   "tickets",
   "trust",
   "giveaways",
-  "radio",
 ];
 
 function isPremiumModule(name) {

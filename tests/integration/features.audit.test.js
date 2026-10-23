@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   registerFeaturesRoutes,
 } = require("../../src/dashboard/routes/features");
+const { FEATURE_DEFAULTS } = require("../../src/systems/featuresService");
 const { startApp, stopApp, passthrough, sanitizeId } = require("./_helpers");
 
 test("feature updates are recorded without including custom message content", async () => {
@@ -82,9 +83,7 @@ test("feature loading distinguishes saved features from normalized defaults", as
     assert.equal(result.features.tickets.channelId, null);
     assert.equal(
       result.features.antiSpam.intervalSeconds,
-      Math.round(
-        require("../../src/config/defaultConfig").antiSpam.interval / 1000,
-      ),
+      FEATURE_DEFAULTS.antiSpam.intervalSeconds,
     );
   } finally {
     await stopApp(app.server);
