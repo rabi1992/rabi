@@ -52,6 +52,9 @@ function normalizePlaybackError(error) {
 }
 
 function releaseGuildSession(guildId, session, clearQueue = true) {
+  if (session) {
+    session.state = "stopped";
+  }
   if (guildPlayers.get(guildId) !== session) return;
   guildPlayers.delete(guildId);
   if (clearQueue) guildQueues.delete(guildId);
@@ -96,6 +99,10 @@ async function resolveTrackSource(query) {
 }
 
 async function createResourceFromUrl(url) {
+  if (isYoutubeUrl(url)) {
+    throw new Error("SOURCE_BLOCKED");
+  }
+
   if (playDl && typeof playDl.stream === "function") {
     try {
       const data = await playDl.stream(url, {
@@ -171,7 +178,7 @@ async function ensureGuildPlayer(client, guildId, channelId) {
 
   connection.subscribe(player);
 
-  const session = { guildId, channelId, connection, player, client };
+  const session = { guildId, channelId, connection, player, client, state: "idle" };
   guildPlayers.set(guildId, session);
   session.onVoiceStateUpdate = (oldState, newState) => {
     if (
@@ -191,6 +198,7 @@ async function ensureGuildPlayer(client, guildId, channelId) {
   if (!session._queueBound) {
     session.player.on(AudioPlayerStatus.Idle, async () => {
       if (guildPlayers.get(guildId) !== session) return;
+      session.state = "idle";
       const queue = getGuildQueue(guildId);
       if (queue.length > 0) {
         const next = queue[0];
@@ -199,6 +207,7 @@ async function ensureGuildPlayer(client, guildId, channelId) {
         if (!sessionNow) return;
         try {
           const resource = await createResourceFromUrl(next.url);
+          sessionNow.state = "playing";
           sessionNow.player.play(resource);
           sessionNow.lastTrack = { title: next.title, url: next.url };
         } catch {
@@ -223,8 +232,14 @@ async function playGuildMusic({ client, guildId, channelId, query }) {
   try {
     const source = await resolveTrackSource(normalized);
     const session = guildPlayers.get(guildId);
+    const isActiveSession =
+      !!session &&
+      (
+        (session.state && session.state !== "idle" && session.state !== "stopped") ||
+        (session.player && session.player.state && session.player.state.status !== "idle")
+      );
 
-    if (session && session.player && session.player.state && session.player.state.status !== "idle") {
+    if (isActiveSession) {
       const queued = enqueueGuildTrack(guildId, {
         title: source.title,
         url: source.url,
@@ -240,6 +255,7 @@ async function playGuildMusic({ client, guildId, channelId, query }) {
 
     const activeSession = await ensureGuildPlayer(client, guildId, channelId);
     const resource = await createResourceFromUrl(source.url);
+    activeSession.state = "playing";
     activeSession.player.play(resource);
     activeSession.lastTrack = {
       title: source.title,
@@ -328,5 +344,10 @@ module.exports = {
   getNowPlaying,
   guildPlayers,
   guildQueues,
-  _internals: { releaseGuildSession, isYoutubeUrl, normalizePlaybackError },
+  _internals: {
+    releaseGuildSession,
+    isYoutubeUrl,
+    normalizePlaybackError,
+    createResourceFromUrl,
+  },
 };

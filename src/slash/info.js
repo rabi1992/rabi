@@ -5,36 +5,36 @@ const { tContext } = require("../systems/i18n");
 
 const COMMAND_GROUPS = [
   {
-    name: "Moderação",
+    nameKey: "info.groups.moderation",
     commands: [
-      ["/warn", "Regista um aviso para um membro."],
-      ["/mute", "Aplica mute temporário ou permanente."],
-      ["/unmute", "Remove o mute de um membro."],
-      ["/kick", "Expulsa um membro do servidor."],
-      ["/ban", "Bane um membro, com duração opcional."],
-      ["/unban", "Remove um utilizador da lista de banidos."],
-      ["/clear", "Apaga mensagens recentes num canal."],
-      ["/history", "Consulta o histórico de moderação de um membro."],
-      ["/userinfo", "Mostra informação e estado de um membro."],
+      ["/warn", "info.commands.warn"],
+      ["/mute", "info.commands.mute"],
+      ["/unmute", "info.commands.unmute"],
+      ["/kick", "info.commands.kick"],
+      ["/ban", "info.commands.ban"],
+      ["/unban", "info.commands.unban"],
+      ["/clear", "info.commands.clear"],
+      ["/history", "info.commands.history"],
+      ["/userinfo", "info.commands.userinfo"],
     ],
   },
   {
-    name: "Comunidade",
+    nameKey: "info.groups.community",
     commands: [
-      ["/poll", "Cria uma votação interativa."],
-      ["/rank", "Mostra o nível e XP de um membro."],
-      ["/leaderboard", "Mostra a tabela de XP do servidor."],
-      ["/help", "Apresenta ajuda resumida para membros."],
-      ["/info", "Abre este guia completo para a staff."],
+      ["/poll", "info.commands.poll"],
+      ["/rank", "info.commands.rank"],
+      ["/leaderboard", "info.commands.leaderboard"],
+      ["/help", "info.commands.help"],
+      ["/info", "info.commands.info"],
     ],
   },
   {
-    name: "Música",
+    nameKey: "info.groups.music",
     commands: [
-      ["/play", "Pesquisa ou reproduz um link de áudio no canal de voz."],
-      ["/stop", "Para a reprodução e limpa a fila."],
-      ["/queue", "Mostra as faixas em espera."],
-      ["/nowplaying", "Mostra a faixa em reprodução."],
+      ["/play", "info.commands.play"],
+      ["/stop", "info.commands.stop"],
+      ["/queue", "info.commands.queue"],
+      ["/nowplaying", "info.commands.nowplaying"],
     ],
   },
 ];
@@ -49,21 +49,30 @@ module.exports = async function infoSlash(_client, interaction) {
       );
     }
 
+    const groups = await Promise.all(
+      COMMAND_GROUPS.map(async (group) => ({
+        name: await tContext(interaction, group.nameKey),
+        value: (
+          await Promise.all(
+            group.commands.map(async ([command, descriptionKey]) => {
+              const description = await tContext(interaction, descriptionKey);
+              return `**${command}** · ${description}`;
+            }),
+          )
+        ).join("\n"),
+      })),
+    );
+
     const embed = new EmbedBuilder()
       .setColor(0x2f855a)
-      .setTitle(".rabbit | Guia da staff")
-      .setDescription(
-        "Referência rápida dos comandos disponíveis neste servidor.",
-      )
-      .addFields(
-        COMMAND_GROUPS.map((group) => ({
-          name: group.name,
-          value: group.commands
-            .map(([command, description]) => `**${command}** · ${description}`)
-            .join("\n"),
-        })),
-      )
-      .setFooter({ text: `Servidor: ${interaction.guild.name}` });
+      .setTitle(await tContext(interaction, "info.title"))
+      .setDescription(await tContext(interaction, "info.description"))
+      .addFields(groups)
+      .setFooter({
+        text: await tContext(interaction, "info.serverFooter", {
+          guildName: interaction.guild.name,
+        }),
+      });
 
     return safeReply(interaction, { embeds: [embed] }, { ephemeral: true });
   } catch (err) {

@@ -53,6 +53,12 @@ function t(path, langOverride, value) {
     return node(value);
   }
 
+  if (typeof node === "string" && value && typeof value === "object") {
+    return node.replace(/\{(\w+)\}/g, (_, key) =>
+      value[key] == null ? "" : String(value[key]),
+    );
+  }
+
   return node;
 }
 

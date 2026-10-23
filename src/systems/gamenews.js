@@ -182,6 +182,12 @@ function normalizeIp(ip) {
   return ip;
 }
 
+function isFeedCycleStale(revision, expectedRevision) {
+  return !Number.isInteger(revision) || !Number.isInteger(expectedRevision)
+    ? true
+    : revision !== expectedRevision;
+}
+
 function isPrivateIp(ip) {
   const addr = normalizeIp(ip);
   const family = net.isIP(addr);
@@ -977,11 +983,11 @@ async function gameNewsSystem(client, config) {
 
       try {
         const feeds = await getEffectiveFeeds();
-        if (revision !== feedsRevision || !feeds.length) return;
+        if (isFeedCycleStale(revision, feedsRevision) || !feeds.length) return;
         activeFeeds = true;
 
         for (const feed of feeds) {
-          if (revision !== feedsRevision) break;
+          if (isFeedCycleStale(revision, feedsRevision)) break;
           const feedName = feed?.name || "UnknownFeed";
           const perFeedJitterMs =
             clampNumber(
@@ -995,7 +1001,7 @@ async function gameNewsSystem(client, config) {
               : 1500;
 
           await sleep(withJitter(300, safePerFeedJitter));
-          if (revision !== feedsRevision) break;
+          if (isFeedCycleStale(revision, feedsRevision)) break;
 
           let record = null;
           try {
@@ -1007,7 +1013,7 @@ async function gameNewsSystem(client, config) {
             );
             continue;
           }
-          if (revision !== feedsRevision) break;
+          if (isFeedCycleStale(revision, feedsRevision)) break;
 
           if (isFeedPaused(record)) {
             if (process.env.NODE_ENV !== "production") {
@@ -1055,7 +1061,7 @@ async function gameNewsSystem(client, config) {
               record,
               fetchOpts,
             );
-            if (revision !== feedsRevision) break;
+            if (isFeedCycleStale(revision, feedsRevision)) break;
             let items = parsed?.items || [];
             if (!Array.isArray(items) || items.length === 0) {
               await registerFeedSuccess(record).catch(() => null);
@@ -1136,7 +1142,7 @@ async function gameNewsSystem(client, config) {
             const itemsToSend = newItems.slice(-safeMaxPerCycle);
 
             for (const itemToSend of itemsToSend) {
-              if (revision !== feedsRevision) break;
+              if (isFeedCycleStale(revision, feedsRevision)) break;
               if (!itemToSend?.title || !itemToSend?.link) {
                 await registerFeedSuccess(record).catch(() => null);
                 continue;
@@ -1163,7 +1169,7 @@ async function gameNewsSystem(client, config) {
               });
             }
           } catch (err) {
-            if (revision !== feedsRevision) break;
+            if (isFeedCycleStale(revision, feedsRevision)) break;
             console.error(
               `[GameNews] Error processing feed ${feedName}:`,
               err?.message || err,
@@ -1407,4 +1413,5 @@ module.exports._internals = {
   dayKeyUTC,
   bumpDailyCount,
   computeGameNewsPollInterval,
+  isFeedCycleStale,
 };

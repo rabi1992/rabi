@@ -1,5 +1,6 @@
 const { safeReply } = require("../utils/discord");
 const { playGuildMusic } = require("../systems/music");
+const { tContext } = require("../systems/i18n");
 
 module.exports = async function playSlash(client, interaction) {
   try {
@@ -9,7 +10,7 @@ module.exports = async function playSlash(client, interaction) {
     if (!memberVoice?.channel) {
       return safeReply(
         interaction,
-        { content: "Você precisa entrar num canal de voz antes de usar /play." },
+        { content: await tContext(interaction, "play.voiceRequired") },
         { ephemeral: true },
       );
     }
@@ -23,33 +24,36 @@ module.exports = async function playSlash(client, interaction) {
     });
 
     if (!result.ok) {
+      const reasonKey =
+        result.reason === "EMPTY_QUERY"
+          ? "play.emptyQuery"
+          : result.reason === "NO_RESULTS"
+            ? "play.noResults"
+            : result.reason === "SOURCE_BLOCKED"
+              ? "play.sourceBlocked"
+              : result.reason === "STREAM_NOT_AUDIO"
+                ? "play.notAudio"
+                : "play.failed";
+
       return safeReply(
         interaction,
-        {
-          content:
-            result.reason === "EMPTY_QUERY"
-              ? "Precisas indicar uma música, link ou pesquisa."
-              : result.reason === "NO_RESULTS"
-                ? "Não encontrei resultados para essa pesquisa."
-                : result.reason === "SOURCE_BLOCKED"
-                  ? "A fonte bloqueou o acesso automatizado. Usa um link direto para um stream de áudio acessível."
-                  : result.reason === "STREAM_NOT_AUDIO"
-                    ? "O link não devolveu áudio. Usa um link direto para um stream de áudio."
-                : "Não consegui reproduzir esse áudio no momento.",
-        },
+        { content: await tContext(interaction, reasonKey) },
         { ephemeral: true },
       );
     }
 
     return interaction.reply({
-      content: `🎵 A reproduzir "${result.title}" no canal ${memberVoice.channel.name}.`,
+      content: await tContext(interaction, "play.nowPlaying", {
+        title: result.title,
+        channel: memberVoice.channel.name,
+      }),
       allowedMentions: { parse: [] },
     });
   } catch (err) {
     console.error("[slash/play] Error:", err);
     return safeReply(
       interaction,
-      { content: "Ocorreu um erro ao iniciar a reprodução." },
+      { content: await tContext(interaction, "play.failed") },
       { ephemeral: true },
     );
   }

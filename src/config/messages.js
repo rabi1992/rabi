@@ -102,6 +102,48 @@ module.exports = {
         `🧹 Cleared **${count}** messages; **${failed}** could not be deleted.`,
     },
 
+    play: {
+      voiceRequired: "❌ You need to join a voice channel before using /play.",
+      emptyQuery: "❌ You need to provide a song, link, or search query.",
+      noResults: "❌ I could not find results for that search.",
+      sourceBlocked:
+        "❌ The source blocked automated access. Use a direct audio stream or a non-blocked link.",
+      notAudio: "❌ The link did not return audio. Use a direct audio stream.",
+      failed: "❌ I could not play that audio right now.",
+      nowPlaying: ({ title, channel }) => `🎵 Now playing "${title}" in #${channel}.`,
+    },
+
+    info: {
+      title: ".rabbit | Staff guide",
+      description: "Quick reference for the commands available on this server.",
+      serverFooter: ({ guildName }) => `Server: ${guildName}`,
+      groups: {
+        moderation: "Moderation",
+        community: "Community",
+        music: "Music",
+      },
+      commands: {
+        warn: "Registers a warning for a member.",
+        mute: "Applies a temporary or permanent mute.",
+        unmute: "Removes a member's mute.",
+        kick: "Kicks a member from the server.",
+        ban: "Bans a member with an optional duration.",
+        unban: "Removes a user from the ban list.",
+        clear: "Deletes recent messages in a channel.",
+        history: "Checks a member's moderation history.",
+        userinfo: "Shows information and status about a member.",
+        poll: "Creates an interactive vote.",
+        rank: "Shows the level and XP of a member.",
+        leaderboard: "Shows the server XP leaderboard.",
+        help: "Shows a short help summary for members.",
+        info: "Opens this full staff guide.",
+        play: "Searches for or plays an audio link in the voice channel.",
+        stop: "Stops playback and clears the queue.",
+        queue: "Shows the tracks waiting in the queue.",
+        nowplaying: "Shows the track currently playing.",
+      },
+    },
+
     help: {
       title: ".rabbit – Help",
       moderationTitle: "Moderation Commands",
@@ -440,6 +482,48 @@ Warnings: **${warnings}/${maxWarnings}**`,
       success: ({ count }) => `🧹 Apaguei **${count}** mensagens.`,
       partial: ({ count, failed }) =>
         `🧹 Apaguei **${count}** mensagens; não foi possível apagar **${failed}**.`,
+    },
+
+    play: {
+      voiceRequired: "❌ Tens de entrar num canal de voz antes de usar /play.",
+      emptyQuery: "❌ Precisas indicar uma música, link ou pesquisa.",
+      noResults: "❌ Não encontrei resultados para essa pesquisa.",
+      sourceBlocked:
+        "❌ A fonte bloqueou o acesso automatizado. Usa um link direto para um stream de áudio acessível.",
+      notAudio: "❌ O link não devolveu áudio. Usa um link direto para um stream de áudio.",
+      failed: "❌ Não consegui reproduzir esse áudio agora.",
+      nowPlaying: ({ title, channel }) => `🎵 A reproduzir "${title}" no canal #${channel}.`,
+    },
+
+    info: {
+      title: ".rabbit | Guia da staff",
+      description: "Referência rápida dos comandos disponíveis neste servidor.",
+      serverFooter: ({ guildName }) => `Servidor: ${guildName}`,
+      groups: {
+        moderation: "Moderação",
+        community: "Comunidade",
+        music: "Música",
+      },
+      commands: {
+        warn: "Regista um aviso para um membro.",
+        mute: "Aplica mute temporário ou permanente.",
+        unmute: "Remove o mute de um membro.",
+        kick: "Expulsa um membro do servidor.",
+        ban: "Bane um membro, com duração opcional.",
+        unban: "Remove um utilizador da lista de banidos.",
+        clear: "Apaga mensagens recentes num canal.",
+        history: "Consulta o histórico de moderação de um membro.",
+        userinfo: "Mostra informação e estado de um membro.",
+        poll: "Cria uma votação interativa.",
+        rank: "Mostra o nível e XP de um membro.",
+        leaderboard: "Mostra a tabela de XP do servidor.",
+        help: "Apresenta ajuda resumida para membros.",
+        info: "Abre este guia completo para a staff.",
+        play: "Pesquisa ou reproduz um link de áudio no canal de voz.",
+        stop: "Para a reprodução e limpa a fila.",
+        queue: "Mostra as faixas em espera.",
+        nowplaying: "Mostra a faixa em reprodução.",
+      },
     },
 
     help: {

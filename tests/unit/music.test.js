@@ -10,6 +10,16 @@ const {
   stopGuildMusic,
   _internals,
 } = require("../../src/systems/music");
+const { t } = require("../../src/systems/i18n");
+
+test("command strings follow the selected language and interpolate variables", async () => {
+  const en = t("play.nowPlaying", "en", { title: "Night Drive", channel: "General" });
+  const pt = t("play.nowPlaying", "pt", { title: "Night Drive", channel: "Geral" });
+  ok(en.includes("Now playing") && en.includes("General"), "English play message should be localized");
+  ok(pt.includes("A reproduzir") && pt.includes("Geral"), "Portuguese play message should be localized");
+  ok(t("info.commands.warn", "en").includes("warning"), "English info text should load from the locale");
+  ok(t("info.commands.warn", "pt").includes("aviso"), "Portuguese info text should load from the locale");
+});
 
 test("normalizeMediaQuery trims whitespace and preserves playable URLs", async () => {
   const normalized = normalizeMediaQuery("  https://example.com/song.mp3  ");
@@ -44,6 +54,7 @@ test("releasing a music session clears its queue and voice listener", async () =
       off: (name, listener) => events.delete(name + listener),
     },
     onVoiceStateUpdate: () => {},
+    state: "playing",
   };
   events.set("voiceStateUpdate" + session.onVoiceStateUpdate, true);
   guildPlayers.set("guild-cleanup", session);
@@ -56,6 +67,7 @@ test("releasing a music session clears its queue and voice listener", async () =
 
   ok(!guildPlayers.has("guild-cleanup"), "session should be removed");
   ok(!getGuildQueue("guild-cleanup").length, "queue should be cleared");
+  ok(session.state === "stopped", "session state should be explicit on cleanup");
   ok(!events.size && destroyed, "listener and voice connection should be released");
 });
 

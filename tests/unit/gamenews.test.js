@@ -19,6 +19,7 @@ const {
   getNewItemsByHashes,
   pushHashAndTrim,
   collectExtraChannelIds,
+  isFeedCycleStale,
 } = gamenews._internals;
 
 // -----------------------------
@@ -216,6 +217,12 @@ test("isItemTooOld compara com a janela em dias", () => {
   // Deteção desativada para janelas não positivas
   eq(isItemTooOld(old, 0), false);
   eq(isItemTooOld(old, NaN), false);
+});
+
+test("isFeedCycleStale cancela ciclos obsoletos após remoção de feeds", () => {
+  eq(isFeedCycleStale(12, 12), false);
+  eq(isFeedCycleStale(12, 13), true);
+  eq(isFeedCycleStale(null, 10), true);
 });
 
 // -----------------------------
