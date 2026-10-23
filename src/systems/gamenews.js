@@ -909,6 +909,7 @@ async function buildStatusPayload(config) {
 
     const pausedUntil = d?.pausedUntil ? new Date(d.pausedUntil) : null;
     const paused = pausedUntil ? pausedUntil.getTime() > now : false;
+    const runtimeState = describeFeedState(d || {});
 
     const intervalOverride = Number(f.intervalMs ?? 0);
     const safeBase =
@@ -940,6 +941,9 @@ async function buildStatusPayload(config) {
         : [],
       lastHashesCount: Array.isArray(d?.lastHashes) ? d.lastHashes.length : 0,
 
+      status: runtimeState.status,
+      reason: runtimeState.reason,
+      summary: runtimeState.summary,
       paused,
       updatedAt: d?.updatedAt ?? null,
 

@@ -384,6 +384,8 @@
       ? state.gameNewsStatusIndex[makeStatusKey(f)]
       : null;
     const hasStatusError = !!(st && st.lastError);
+    const runtimeStatus = st && st.status ? String(st.status) : "idle";
+    const runtimeSummary = st && st.summary ? String(st.summary) : "";
 
     const dirty = isFeedDirty(f);
 
@@ -395,9 +397,15 @@
     } else if (dirty) {
       badgeClass = "warn";
       badgeText = t("gamenews_feed_status_dirty");
-    } else if (hasStatusError) {
+    } else if (runtimeStatus === "paused") {
+      badgeClass = "warn";
+      badgeText = "Paused";
+    } else if (runtimeStatus === "error") {
       badgeClass = "error";
-      badgeText = t("gamenews_feed_status_error");
+      badgeText = "Error";
+    } else if (runtimeStatus === "idle") {
+      badgeClass = "bot";
+      badgeText = "Idle";
     } else {
       badgeClass = enabled ? "human" : "bot";
       badgeText = enabled
@@ -409,7 +417,7 @@
     badgeEl.className = "user-type-badge " + badgeClass;
     badgeEl.textContent = badgeText;
     badgeEl.title =
-      hasStatusError && st.lastError ? String(st.lastError) : badgeText;
+      runtimeSummary || (hasStatusError && st.lastError ? String(st.lastError) : badgeText);
 
     subtitleEl.textContent =
       (feedUrl || "") + (channelId ? " • " + channelId : "");
@@ -628,6 +636,9 @@
     const lastSent =
       st && st.lastSentAt ? formatDateTimeShort(st.lastSentAt) : "";
     const lastError = st && st.lastError ? st.lastError : "";
+    const runtimeStatus = st && st.status ? String(st.status) : "idle";
+    const runtimeSummary = st && st.summary ? String(st.summary) : "";
+    const runtimeReason = st && st.reason ? String(st.reason) : "";
 
     let html = "";
 
@@ -770,6 +781,23 @@
         t("gamenews_detail_state_empty"),
       )}</div>`;
     } else {
+      const badgeLabel =
+        runtimeStatus === "healthy"
+          ? "Healthy"
+          : runtimeStatus === "paused"
+            ? "Paused"
+            : runtimeStatus === "error"
+              ? "Error"
+              : runtimeStatus === "idle"
+                ? "Idle"
+                : runtimeStatus;
+      html += `<div class="badge">Status: ${escapeHtml(badgeLabel)}</div>`;
+      if (runtimeSummary) {
+        html += `<div class="hint">${escapeHtml(runtimeSummary)}</div>`;
+      }
+      if (runtimeReason) {
+        html += `<div class="hint">Reason: ${escapeHtml(runtimeReason)}</div>`;
+      }
       if (lastSent)
         html += `<div class="badge">${escapeHtml(t("gamenews_detail_last_sent"))}: ${escapeHtml(lastSent)}</div>`;
 

@@ -115,6 +115,8 @@ function registerGameNewsRoutes(ctx) {
         const items = feeds.map((s) => {
           const key = makeFeedSourceKey(s);
           const d = map.get(key) || map.get(s.name);
+          const runtimeState = d ? require("../../systems/gamenews")._internals.describeFeedState(d) : { status: "idle", reason: "never_sent", summary: "No successful sends yet." };
+
           return {
             guildId: s.guildId || null,
             // Keep the human name for the UI but preserve the internal source key for matching.
@@ -145,6 +147,9 @@ function registerGameNewsRoutes(ctx) {
             lastHashesCount: Array.isArray(d?.lastHashes)
               ? d.lastHashes.length
               : 0,
+            status: runtimeState.status,
+            reason: runtimeState.reason,
+            summary: runtimeState.summary,
 
             updatedAt: d?.updatedAt ?? null,
           };
