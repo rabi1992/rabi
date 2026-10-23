@@ -188,6 +188,45 @@ function isFeedCycleStale(revision, expectedRevision) {
     : revision !== expectedRevision;
 }
 
+function describeFeedState(record = {}) {
+  const now = Date.now();
+  const pausedUntil = record?.pausedUntil ? new Date(record.pausedUntil) : null;
+  const paused = !!pausedUntil && pausedUntil.getTime() > now;
+  const failCount = Number(record?.failCount ?? 0);
+  const lastError = typeof record?.lastError === "string" ? record.lastError : "";
+  const lastSentAt = record?.lastSentAt ? new Date(record.lastSentAt) : null;
+
+  if (paused) {
+    return {
+      status: "paused",
+      reason: "paused",
+      summary: `Feed paused until ${pausedUntil.toISOString()}${lastError ? ` (${lastError})` : ""}`,
+    };
+  }
+
+  if (failCount > 0) {
+    return {
+      status: "error",
+      reason: "backoff",
+      summary: `${failCount} failed checks${lastError ? ` • ${lastError}` : ""}`,
+    };
+  }
+
+  if (lastSentAt && lastSentAt.getTime() > 0) {
+    return {
+      status: "healthy",
+      reason: "ok",
+      summary: `Last sent ${lastSentAt.toISOString()}`,
+    };
+  }
+
+  return {
+    status: "idle",
+    reason: "never_sent",
+    summary: "No successful sends yet.",
+  };
+}
+
 function isPrivateIp(ip) {
   const addr = normalizeIp(ip);
   const family = net.isIP(addr);
@@ -1414,4 +1453,5 @@ module.exports._internals = {
   bumpDailyCount,
   computeGameNewsPollInterval,
   isFeedCycleStale,
+  describeFeedState,
 };

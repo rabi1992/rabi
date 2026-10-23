@@ -20,6 +20,7 @@ const {
   pushHashAndTrim,
   collectExtraChannelIds,
   isFeedCycleStale,
+  describeFeedState,
 } = gamenews._internals;
 
 // -----------------------------
@@ -223,6 +224,27 @@ test("isFeedCycleStale cancela ciclos obsoletos após remoção de feeds", () =>
   eq(isFeedCycleStale(12, 12), false);
   eq(isFeedCycleStale(12, 13), true);
   eq(isFeedCycleStale(null, 10), true);
+});
+
+test("describeFeedState devolve estados explícitos para dashboard e diagnósticos", () => {
+  const state = describeFeedState({
+    pausedUntil: new Date(Date.now() + 60000),
+    failCount: 1,
+    lastError: "Socket timeout",
+    lastSentAt: new Date(Date.now() - 2 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 5 * 60 * 1000),
+  });
+
+  eq(state.status, "paused");
+  eq(state.reason, "paused");
+  ok(state.summary.includes("paused") || state.summary.includes("Socket timeout"), "summary should explain the state");
+
+  const healthy = describeFeedState({
+    lastSentAt: new Date(Date.now() - 60 * 1000),
+    failCount: 0,
+  });
+  eq(healthy.status, "healthy");
+  eq(healthy.reason, "ok");
 });
 
 // -----------------------------
